@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP信息查询系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">
+            <i class="fas fa-globe mr-2"></i>IP信息查询系统
+        </h1>
+        
+        <!-- 当前IP信息卡片 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <div class="mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">
+                    <i class="fas fa-user-shield mr-2"></i>您的IP信息
+                </h2>
+                <!-- 刷新按钮已移除 -->
+            </div>
+            <div id="myIpInfo" class="space-y-4">
+                <div class="animate-pulse flex space-x-4">
+                    <div class="flex-1 space-y-4 py-1">
+                        <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div class="space-y-2">
+                            <div class="h-4 bg-gray-200 rounded"></div>
+                            <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IP查询卡片 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-search mr-2"></i>查询其他IP
+            </h2>
+            <div class="text-sm text-gray-600 mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                每分钟最多查询10次
+            </div>
+            <div class="flex space-x-4 mb-4">
+                <div class="flex-1 relative">
+                    <input type="text" id="ipInput" 
+                           class="w-full border rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="输入IP地址">
+                    <span class="absolute right-3 top-2 text-gray-400">
+                        <i class="fas fa-search"></i>
+                    </span>
+                </div>
+                <button onclick="queryIP()"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center">
+                    <i class="fas fa-search mr-2"></i>查询
+                </button>
+            </div>
+            <div id="ipQueryResult" class="hidden">
+                <h3 class="text-xl font-semibold mb-2 text-gray-800">查询结果</h3>
+                <pre id="queryResult" class="bg-gray-100 p-4 rounded-lg overflow-x-auto text-sm"></pre>
+            </div>
+        </div>
+
+        <!-- 命令行提示 -->
+        <div class="mt-8 text-center">
+            <div class="inline-block bg-gray-800 text-gray-200 rounded-lg p-4 text-sm font-mono">
+                <i class="fas fa-terminal mr-2"></i>
+                <span id="terminal-text"></span><span class="cursor">_</span>
+            </div>
+        </div>
+        <style>
+            .cursor {
+                animation: blink 1s infinite;
+            }
+            @keyframes blink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0; }
+            }
+            #terminal-text {
+                display: inline-block;
+                white-space: nowrap;
+            }
+        </style>
+        <script>
+            window.addEventListener('load', () => {
+                const element = document.getElementById('terminal-text');
+                const text = 'curl ip.m0rk.top';
+                let i = 0;
+                
+                // 清空文本内容
+                element.textContent = '';
+                
+                // 添加打字机效果
+                function typeWriter() {
+                    if (i < text.length) {
+                        element.textContent += text.charAt(i);
+                        i++;
+                        setTimeout(typeWriter, Math.random() * 100 + 50); // 随机延迟，使打字效果更自然
+                    }
+                }
+                
+                // 延迟一下再开始打字效果
+                setTimeout(typeWriter, 800);
+            });
+        </script>
+    </div>
+
+    <script>
+        function fetchMyIP() {
+            // 显示加载状态
+            document.getElementById('myIpInfo').innerHTML = '<div class="animate-pulse h-4 bg-gray-200 rounded w-3/4"></div>';
+            
+            // 清除可能的缓存
+            fetch('/api/myip', {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('网络请求失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                let html = '<div class="grid grid-cols-1 gap-4">';
+                for (const [section, items] of Object.entries(data)) {
+                    if (typeof items === 'object' && items !== null) {
+                        html += `<div class="border-t pt-4 first:border-t-0 first:pt-0">`;
+                        html += `<h3 class="text-lg font-medium text-gray-800 mb-2">${section}</h3>`;
+                        html += '<div class="space-y-2">';
+                        for (const [key, value] of Object.entries(items)) {
+                            if (key !== 'readme') {
+                                html += `<div class="grid grid-cols-3 gap-2">
+                                    <span class="font-medium text-gray-600">${key}:</span>
+                                    <span class="col-span-2 text-gray-800">${value}</span>
+                                </div>`;
+                            }
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                document.getElementById('myIpInfo').innerHTML = html;
+            })
+            .catch(error => {
+                document.getElementById('myIpInfo').innerHTML = 
+                    `<p class="text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>${error.message}</p>`;
+            });
+        }
+
+        function queryIP() {
+            const ip = document.getElementById('ipInput').value.trim();
+            if (!ip) {
+                alert('请输入IP地址');
+                return;
+            }
+
+            document.getElementById('ipQueryResult').classList.remove('hidden');
+            document.getElementById('queryResult').innerHTML = '<div class="animate-pulse h-4 bg-gray-200 rounded w-3/4"></div>';
+
+            fetch(`/api/ip/${ip}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('queryResult').innerHTML = 
+                            `<p class="text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>${data.error}</p>`;
+                        return;
+                    }
+                    
+                    // 格式化显示中文结果，过滤掉不需要显示的字段
+                    let filteredData = { ...data };
+                    if (filteredData.request_info) {
+                        delete filteredData.request_info['X-Forwarded-For'];
+                        delete filteredData.request_info['主机名'];
+                    }
+                    const formattedData = JSON.stringify(filteredData, null, 2)
+                        .replace(/[{},\[\]]/g, '')  // 移除JSON符号
+                        .split('\n')
+                        .filter(line => line.trim())  // 移除空行
+                        .map(line => line.trim())
+                        .join('\n');
+                    
+                    document.getElementById('queryResult').textContent = formattedData;
+                })
+                .catch(error => {
+                    document.getElementById('queryResult').innerHTML = 
+                        `<p class="text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>${error.message}</p>`;
+                });
+        }
+
+        // 页面加载时获取IP信息，但不添加自动刷新功能
+        document.addEventListener('DOMContentLoaded', fetchMyIP);
+    </script>
+</body>
+</html>
